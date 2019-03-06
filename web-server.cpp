@@ -9,11 +9,11 @@
 #include <netdb.h>
 #include <stdlib.h>
 #include <iostream>
-#include <sstream>
 #include <list>
 
 #define SERVER_PORT "40000"
 #define BACKLOG 10
+#define BUFFER_SIZE 32
 
 void *
 get_in_addr(struct sockaddr *sa)
@@ -45,13 +45,12 @@ int
 main()
 {
 	struct addrinfo hints, *server_info, *res_point;
-	int server_fd, client_fd, highest_fd;
+	int listener_fd, client_fd, highest_fd, gai_result, n_bytes, closed_fd, yes = 1;
 	struct sockaddr_storage client_addr;
 	socklen_t client_addr_size;
-	int yes = 1, gai_result;
-	char ipstr[INET6_ADDRSTRLEN] = {'\0'};
-	fd_set readfds;
-	std::list<int> readfd_list;	
+	char ipstr[INET6_ADDRSTRLEN], buf[BUFFER_SIZE];
+	fd_set master, readfds;
+	std::list<int> master_list;	
 
 	// Set parameters for address structs
 	memset(&hints, 0, sizeof hints);
@@ -62,28 +61,28 @@ main()
 	// Get available address structs based on host IP
 	if((gai_result = getaddrinfo(NULL, SERVER_PORT, &hints, &server_info)) != 0){
 		fprintf(stderr, "getaddrinfo : %s\n", gai_strerror(gai_result));
-		return 1;
+		exit(0);
 	}
 	
 	// Loop through getaddrinfo results for available struct  
 	for(res_point = server_info; res_point != NULL; res_point = res_point->ai_next){
 		
 		// Create a main socket for the server using TCP IP (Stream)
-		if((server_fd = socket(res_point->ai_family, res_point->ai_socktype, res_point->ai_protocol)) == -1) {
+		if((listener_fd = socket(res_point->ai_family, res_point->ai_socktype, res_point->ai_protocol)) == -1) {
 			perror("server : socket");
 			continue;
 		}		
 
 		// Allow others to reuse the socket
-		if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
+		if (setsockopt(listener_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
 			perror("setsockopt");
 			// Why is this an exit call ?
 			exit(1);
 		}
 
 		// Bind host address to main socket
-		if (bind(server_fd, res_point->ai_addr, res_point->ai_addrlen) == -1) {
-			close(server_fd);
+		if (bind(listener_fd, res_point->ai_addr, res_point->ai_addrlen) == -1) {
+			close(listener_fd);
 			perror("server : bind");
 			continue;
 		}
@@ -97,95 +96,100 @@ main()
 	// If no working address struct is found
 	if(res_point == NULL){
 		fprintf(stderr, "server : failed to bind\n");
-		exit(1);
+		exit(2);
 	} 
 	
 	// Set server socket to listen status
-	if (listen(server_fd, BACKLOG) == -1) {
+	if (listen(listener_fd, BACKLOG) == -1) {
 		perror("server : listen");
 		// Why is this an exit call ?
-		exit(1);
+		exit(3);
 	}
 	
 	// Reap all dead processes here ?
 	
 	// Set highest file descriptor	
-	highest_fd = server_fd;	
+	highest_fd = listener_fd;	
+	
+	// Clear both sets and add listener socket to master
+	FD_ZERO(&readfds);
+	FD_ZERO(&master);
+	FD_SET(listener_fd, &master);
+
+	// Set socket removal flag
+	closed_fd = -1;
 	
 	printf("server : waiting for connections...\n");
 
 	// Wait for  connections and deal with them
 	while(1){
-	
-		// Add listening main socket to read set
-		FD_ZERO(&readfds);
-		FD_SET(server_fd, &readfds);
 		
-		for(auto const& curr_client_fd : readfd_list){	
-			FD_SET(curr_client_fd, &readfds);
-		}
-
+		// Copy master into temporary readfds
+		readfds = master;	
+		
 		// Check if read set has available sockets	
-		select(highest_fd + 1, &readfds, NULL, NULL, NULL);		
+		if(select(highest_fd + 1, &readfds, NULL, NULL, NULL) == -1){
+			perror("select");
+			exit(4);
+		}
 			
 		// Does FD_ISSET need to be checked or just recv	
 		// Iterate through client sockets and check for send/receive
-		for(auto const& curr_client_fd : readfd_list){
+		for(auto& curr_client_fd : master_list){
 			
 			// Not available for reading
 			if(!FD_ISSET(curr_client_fd, &readfds)){ continue; }
 		
-			// Socket available for reading
-			char buf[20] = {0};
-			// std::stringstream ss;
-
 			memset(buf, '\0', sizeof(buf));
 
-			if (recv(curr_client_fd, buf, 20, 0) == -1) {
-			      	perror("recv");
-			      	continue;
+			if((n_bytes = recv(curr_client_fd, buf, 20, 0)) <= 0) {
+			      	if(n_bytes == 0){
+					printf("server : socket %d hung up\n", curr_client_fd);
+				}
+				else{ perror("recv"); }
+				// Close server side of connection
+			      	close(curr_client_fd);
+				FD_CLR(curr_client_fd, &master);
+				// Flag removal of socket
+				closed_fd = curr_client_fd;
+				continue;
 			}
 
-			// ss << buf << std::endl;
 			std::cout << buf << std::endl;
 
 			if (send(curr_client_fd, buf, 20, 0) == -1) {
 			      	perror("send");
 			      	continue;
 			}
-
-			// if (ss.str() == "close\n")
-			if (strcmp(buf, "close\n") == 0)
-				printf("String : [%s]", buf);
-				printf("Aaaahhhhhh...\n");
-				close(curr_client_fd);
-				FD_CLR(curr_client_fd, &readfds);
-				readfd_list.remove(curr_client_fd);
-				if(curr_client_fd == highest_fd){
-					highest_fd = server_fd;
-					for(auto const& curr_fd : readfd_list){
-						if(curr_fd > highest_fd){ highest_fd = curr_fd; }
-					}
-				}		
-				printf("Closing...\n");
-				break;
-
-			// ss.str("");
 		}		
 	
+		if(closed_fd != -1){
+			// Remove socket from list and update highest FD
+			master_list.remove(closed_fd);
+			if(closed_fd == highest_fd){
+				highest_fd = listener_fd;
+				for(auto& update_fd : master_list){
+					printf("FD : [%d]\n", update_fd);
+					if(update_fd > highest_fd){ highest_fd = update_fd; }
+				}
+			}		
+			closed_fd = -1;
+		}	
+			
 		// Check to see if new connections are available
-		if(FD_ISSET(server_fd, &readfds)){
+		if(FD_ISSET(listener_fd, &readfds)){
 			
 			// Accept a new connection
 			client_addr_size = sizeof client_addr;
 			printf("server : accepting...\n");
-			if((client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_addr_size)) == -1){
+			if((client_fd = accept(listener_fd, (struct sockaddr *)&client_addr, &client_addr_size)) == -1){
 				perror("accept");
 				continue;
 			}
 			
-			// Add new client socket to list
-			readfd_list.push_back(client_fd);
+			// Add new client socket to list and set
+			master_list.push_back(client_fd);
+			FD_SET(client_fd, &master);
 
 			// Update highest file descriptor
 			if(client_fd > highest_fd){ highest_fd = client_fd; }
