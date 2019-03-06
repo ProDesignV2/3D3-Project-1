@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <iostream>
 #include <sstream>
+#include <list>
 
 #define SERVER_PORT "40000"
 #define BACKLOG 10
@@ -44,11 +45,13 @@ int
 main()
 {
 	struct addrinfo hints, *server_info, *res_point;
-	int server_fd, client_fd;
+	int server_fd, client_fd, highest_fd;
 	struct sockaddr_storage client_addr;
 	socklen_t client_addr_size;
 	int yes = 1, gai_result;
 	char ipstr[INET6_ADDRSTRLEN] = {'\0'};
+	fd_set readfds;
+	std::list<int> readfd_list;	
 
 	// Set parameters for address structs
 	memset(&hints, 0, sizeof hints);
@@ -106,54 +109,92 @@ main()
 	
 	// Reap all dead processes here ?
 	
+	// Set highest file descriptor	
+	highest_fd = server_fd;	
+	
 	printf("server : waiting for connections...\n");
 
 	// Wait for  connections and deal with them
 	while(1){
-
-		// Accept a new connection
-		client_addr_size = sizeof client_addr;
-		printf("server : accepting...\n");
-		if((client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_addr_size)) == -1){
-			perror("accept");
-			continue;
-		}
+	
+		// Add listening main socket to read set
+		FD_ZERO(&readfds);
+		FD_SET(server_fd, &readfds);
 		
-		// Print client address and port details
-		inet_ntop(client_addr.ss_family, get_in_addr((struct sockaddr *)&client_addr), ipstr, sizeof ipstr);
-		std::cout << "server : accepted a connection from " << ipstr << ":" <<
-		ntohs(get_in_port((struct sockaddr *)&client_addr)) << std::endl;
+		for(auto const& curr_client_fd : readfd_list){	
+			FD_SET(curr_client_fd, &readfds);
+		}
 
-		// read/write data from/into the connection
-		bool isEnd = false;
-		char buf[20] = {0};
-		std::stringstream ss;
+		// Check if read set has available sockets	
+		select(highest_fd + 1, &readfds, NULL, NULL, NULL);		
+			
+		// Does FD_ISSET need to be checked or just recv	
+		// Iterate through client sockets and check for send/receive
+		for(auto const& curr_client_fd : readfd_list){
+			
+			// Not available for reading
+			if(!FD_ISSET(curr_client_fd, &readfds)){ continue; }
+		
+			// Socket available for reading
+			char buf[20] = {0};
+			// std::stringstream ss;
 
-		while (!isEnd) {
 			memset(buf, '\0', sizeof(buf));
 
-			if (recv(client_fd, buf, 20, 0) == -1) {
-			      perror("recv");
-			      return 5;
+			if (recv(curr_client_fd, buf, 20, 0) == -1) {
+			      	perror("recv");
+			      	continue;
 			}
 
-			ss << buf << std::endl;
+			// ss << buf << std::endl;
 			std::cout << buf << std::endl;
 
-
-			if (send(client_fd, buf, 20, 0) == -1) {
-			      perror("send");
-			      return 6;
+			if (send(curr_client_fd, buf, 20, 0) == -1) {
+			      	perror("send");
+			      	continue;
 			}
 
-			if (ss.str() == "close\n")
-			      break;
+			// if (ss.str() == "close\n")
+			if (strcmp(buf, "close\n") == 0)
+				printf("String : [%s]", buf);
+				printf("Aaaahhhhhh...\n");
+				close(curr_client_fd);
+				FD_CLR(curr_client_fd, &readfds);
+				readfd_list.remove(curr_client_fd);
+				if(curr_client_fd == highest_fd){
+					highest_fd = server_fd;
+					for(auto const& curr_fd : readfd_list){
+						if(curr_fd > highest_fd){ highest_fd = curr_fd; }
+					}
+				}		
+				printf("Closing...\n");
+				break;
 
-			ss.str("");
+			// ss.str("");
+		}		
+	
+		// Check to see if new connections are available
+		if(FD_ISSET(server_fd, &readfds)){
 			
-		}
+			// Accept a new connection
+			client_addr_size = sizeof client_addr;
+			printf("server : accepting...\n");
+			if((client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_addr_size)) == -1){
+				perror("accept");
+				continue;
+			}
+			
+			// Add new client socket to list
+			readfd_list.push_back(client_fd);
 
-		close(client_fd);
+			// Update highest file descriptor
+			if(client_fd > highest_fd){ highest_fd = client_fd; }
+			
+			// Print client address and port details
+			inet_ntop(client_addr.ss_family, get_in_addr((struct sockaddr *)&client_addr), ipstr, sizeof ipstr);
+			std::cout << "server : accepted a connection from " << ipstr << ":" <<
+			ntohs(get_in_port((struct sockaddr *)&client_addr)) << std::endl;
+		}
 	}
 	
 	return 0;
