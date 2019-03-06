@@ -1,5 +1,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/fcntl.h>
+#include <sys/unistd.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <string.h>
@@ -42,6 +44,24 @@ get_in_port(struct sockaddr *sa)
 }
 
 int
+send_all(int send_fd, char *buf, int *len)
+{
+	int num_bytes, bytes_left = *len, bytes_sent = 0;
+
+	while(bytes_sent < *len){
+		if((num_bytes = send(send_fd, buf + bytes_sent, bytes_left, 0)) == -1){ break; }
+		bytes_sent += num_bytes;
+		bytes_left -= num_bytes;
+	}
+	
+	// Put number of sent bytes into original length variable
+	*len = bytes_sent;
+
+	// Return success outcome
+	return num_bytes == -1 ? -1 : 0;
+}
+
+int
 main()
 {
 	struct addrinfo hints, *server_info, *res_point;
@@ -73,6 +93,9 @@ main()
 			continue;
 		}		
 
+		// Set listener socket to non-blocking
+		fcntl(listener_fd, F_SETFL, O_NONBLOCK);
+
 		// Allow others to reuse the socket
 		if (setsockopt(listener_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
 			perror("setsockopt");
@@ -90,7 +113,7 @@ main()
 		break;
 	}
 
-	// Free addrinfo struct - Should res_point be freed too?
+	// Free addrinfo struct - Should res_point be freed too ?
 	freeaddrinfo(server_info);	
 	
 	// If no working address struct is found
@@ -133,16 +156,15 @@ main()
 			exit(4);
 		}
 			
-		// Does FD_ISSET need to be checked or just recv	
 		// Iterate through client sockets and check for send/receive
-		for(auto& curr_client_fd : master_list){
+		for(const auto& curr_client_fd : master_list){
 			
 			// Not available for reading
 			if(!FD_ISSET(curr_client_fd, &readfds)){ continue; }
-		
-			memset(buf, '\0', sizeof(buf));
 
-			if((n_bytes = recv(curr_client_fd, buf, 20, 0)) <= 0) {
+			memset(&buf, 0, sizeof buf);
+
+			if((n_bytes = recv(curr_client_fd, buf, sizeof buf, 0)) <= 0) {
 			      	if(n_bytes == 0){
 					printf("server : socket %d hung up\n", curr_client_fd);
 				}
@@ -154,11 +176,19 @@ main()
 				closed_fd = curr_client_fd;
 				continue;
 			}
+	
+			// If received data is too big for buffer	
+			if(n_bytes > BUFFER_SIZE){
+				buf[BUFFER_SIZE - 2] = '\r';	
+				buf[BUFFER_SIZE - 1] = '\n';
+				buf[BUFFER_SIZE - 0] = '\0';
+				n_bytes = BUFFER_SIZE;
+			}
 
-			std::cout << buf << std::endl;
+			std::cout << buf;
 
-			if (send(curr_client_fd, buf, 20, 0) == -1) {
-			      	perror("send");
+			if (send_all(curr_client_fd, buf, &n_bytes) == -1) {
+			      	perror("send_all");
 			      	continue;
 			}
 		}		
@@ -168,8 +198,7 @@ main()
 			master_list.remove(closed_fd);
 			if(closed_fd == highest_fd){
 				highest_fd = listener_fd;
-				for(auto& update_fd : master_list){
-					printf("FD : [%d]\n", update_fd);
+				for(const auto& update_fd : master_list){
 					if(update_fd > highest_fd){ highest_fd = update_fd; }
 				}
 			}		
@@ -187,6 +216,9 @@ main()
 				continue;
 			}
 			
+			// Set new socket to non-blocking
+			fcntl(client_fd, F_SETFL, O_NONBLOCK);
+	
 			// Add new client socket to list and set
 			master_list.push_back(client_fd);
 			FD_SET(client_fd, &master);
