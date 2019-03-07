@@ -12,6 +12,8 @@ Vagrant.configure(2) do |config|
   #   vb.memory = "1024"
   # end
 
+  config.vm.network "private_network", type: "dhcp"
+
   config.vm.provision "shell", inline: <<-SHELL
     sudo apt-get update
     sudo apt-get install -y build-essential

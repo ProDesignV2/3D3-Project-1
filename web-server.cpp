@@ -13,9 +13,9 @@
 #include <iostream>
 #include <list>
 
-#define SERVER_PORT "40000"
+#define SERVER_PORT "8080"
 #define BACKLOG 10
-#define BUFFER_SIZE 32
+#define BUFFER_SIZE 1024
 
 void *
 get_in_addr(struct sockaddr *sa)
@@ -175,14 +175,6 @@ main()
 				// Flag removal of socket
 				closed_fd = curr_client_fd;
 				continue;
-			}
-	
-			// If received data is too big for buffer	
-			if(n_bytes > BUFFER_SIZE){
-				buf[BUFFER_SIZE - 2] = '\r';	
-				buf[BUFFER_SIZE - 1] = '\n';
-				buf[BUFFER_SIZE - 0] = '\0';
-				n_bytes = BUFFER_SIZE;
 			}
 
 			std::cout << buf;
