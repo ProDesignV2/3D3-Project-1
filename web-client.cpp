@@ -9,6 +9,9 @@
 #include <netdb.h>
 #include <stdlib.h>
 #include <iostream>
+#include <string>
+
+#include "httpmsg.h"
 
 #define BUFFER_SIZE 1024
 
@@ -39,7 +42,7 @@ get_in_port(struct sockaddr *sa)
 }
 
 int
-send_all(int send_fd, char *buf, int *len)
+send_all(int send_fd, const char *buf, int *len)
 {
 	int num_bytes, bytes_left = *len, bytes_sent = 0;
 
@@ -117,9 +120,13 @@ main(int argc, char *argv[])
 
 	// Send HTTP request for file
 	// Receive all of HTTP response with file in body
-`	// Parse file and save to local folder
+	// Parse file and save to local folder
 
-	if (send_all(sock_fd, buf, &n_bytes) == -1) {
+	HTTP_Request req;
+	req.add_header("GET http://localhost:8000/index.html HTTP/1.0");
+ 	n_bytes = req.len_msg() + 1;		
+	
+	if (send_all(sock_fd, req.get_msg(), &n_bytes) == -1) {
 		perror("send_all");
 		exit(4);
 	}
@@ -129,6 +136,10 @@ main(int argc, char *argv[])
 		exit(3);
 	}
 	
+	for(int c = 0; c < n_bytes; c++){
+		if(buf[c] < 32 || buf[c] > 126){ buf[c] = '#'; }
+	}
+
 	buf[n_bytes] = '\0';
 
 	std::cout << buf;

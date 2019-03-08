@@ -1,40 +1,45 @@
-#include <httpmsg.h>
 #include <fstream>
 #include <iterator>
 #include <vector>
 
-HTTP_Message::HTTP_Message() : msg("") {}
+#include "httpmsg.h"
 
-HTTP_Request::HTTP_Request() : msg("") {}
+HTTP_Message::HTTP_Message() : msg(""), has_body(false) {}
 
-HTTP_Response::HTTP_Response() : msg("") {}
+HTTP_Request::HTTP_Request() : HTTP_Message() {}
+
+HTTP_Response::HTTP_Response() : HTTP_Message() {}
 
 void 
-HTTP_Message::add_header(string header_line)
+HTTP_Message::add_header(std::string header_line)
 {
 	msg.append(header_line);
 	msg.append("\r\n");
 }
 
-string
-HTTP_Message::get_message()
+const char *
+HTTP_Message::get_msg()
 {
-	msg.append("\r\n");
-	return msg;
+	if(!has_body){ msg.append("\r\n"); }
+	return msg.c_str();
 }
 
-string
-HTTP_Response::get_message()
+int
+HTTP_Message::len_msg()
 {
-	return msg;
+	return has_body ? msg.length() : msg.length() + 2;
 }
 
 void
-HTTP_Response::add_body(string file_path)
+HTTP_Response::add_body(std::string file_path)
 {	
-	// Append file to msg as binary file
+	// Read into char vector as binary file
 	std::ifstream input(file_path, std::ios::binary);
-	std::vector<unsigned char> buffer((std::istreambuf_iterator<unsigned char>(input)),
-					  (std::istreambuf_iterator<unsigned char>());
-	// Add char vector to string
+	std::vector<unsigned char> buffer(std::istreambuf_iterator<char>(input), {});
+
+	// Add char vector to message string
+	std::string body(buffer.begin(), buffer.end());
+	msg.append("\r\n");
+	msg.append(body);
+	has_body = true;
 }

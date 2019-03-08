@@ -8,28 +8,29 @@
 class
 HTTP_Message
 {
-	private:
-		string msg;
+	protected:
+		std::string msg;
+		bool has_body;
 	public:
 		HTTP_Message();
-		void add_header(string header_line);
-		string get_message();
-}
+		void add_header(std::string header_line);
+		const char *get_msg();
+		int len_msg();
+};
 
 class
 HTTP_Request : public HTTP_Message
 {
 	public:
 		HTTP_Request();
-}
+};
 
 class
 HTTP_Response : public HTTP_Message
 {
 	public:
 		HTTP_Response();
-		string get_message();
-		void add_body(string file_path);
-}
+		void add_body(std::string file_path);
+};
 
 #endif

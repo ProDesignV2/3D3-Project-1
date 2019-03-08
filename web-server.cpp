@@ -12,6 +12,9 @@
 #include <stdlib.h>
 #include <iostream>
 #include <list>
+#include <string>
+
+#include "httpmsg.h"
 
 #define SERVER_PORT "9876"
 #define BACKLOG 10
@@ -44,7 +47,7 @@ get_in_port(struct sockaddr *sa)
 }
 
 int
-send_all(int send_fd, char *buf, int *len)
+send_all(int send_fd, const char *buf, int *len)
 {
 	int num_bytes, bytes_left = *len, bytes_sent = 0;
 
@@ -163,7 +166,7 @@ main()
 			if(!FD_ISSET(curr_client_fd, &readfds)){ continue; }
 
 			memset(&buf, 0, sizeof buf);
-
+			
 			if((n_bytes = recv(curr_client_fd, buf, sizeof buf, 0)) <= 0) {
 			      	if(n_bytes == 0){
 					printf("server : socket %d hung up\n", curr_client_fd);
@@ -178,8 +181,17 @@ main()
 			}
 
 			std::cout << buf;
-
-			if (send_all(curr_client_fd, buf, &n_bytes) == -1) {
+			
+			// Try to send .txt file back
+			HTTP_Response resp;
+			resp.add_header("HTTP/1.0 200 OK");
+			resp.add_header("Content-Encoding: binary");
+			resp.add_header("Content-Type: text/plain");
+			resp.add_header("Content-Length: 999");
+			resp.add_body("./Book1.xlsx");
+			n_bytes = resp.len_msg() + 1;
+			
+			if (send_all(curr_client_fd, resp.get_msg(), &n_bytes) == -1) {
 			      	perror("send_all");
 			      	continue;
 			}
