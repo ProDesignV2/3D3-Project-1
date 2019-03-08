@@ -60,8 +60,8 @@ int
 main(int argc, char *argv[])
 {
 	struct addrinfo hints, *server_info, *res_point;
-	int sock_fd, gai_result, n_bytes;
-	char ipstr[INET6_ADDRSTRLEN], buf[BUFFER_SIZE];
+	int sock_fd, gai_result, n_bytes = 14;
+	char ipstr[INET6_ADDRSTRLEN], buf[BUFFER_SIZE] = "Hello World!\n";
 	
 	// Set command line argument as address
 	if(argc < 3){
@@ -113,9 +113,16 @@ main(int argc, char *argv[])
 	ntohs(get_in_port(res_point->ai_addr)) << std::endl;
 
 	// Free addrinfo struct - Should res_point be freed too ?
-	freeaddrinfo(server_info);	
-	
-	memset(&buf, 0, sizeof buf);
+	freeaddrinfo(server_info);		
+
+	// Send HTTP request for file
+	// Receive all of HTTP response with file in body
+`	// Parse file and save to local folder
+
+	if (send_all(sock_fd, buf, &n_bytes) == -1) {
+		perror("send_all");
+		exit(4);
+	}
 
 	if((n_bytes = recv(sock_fd, buf, BUFFER_SIZE - 1, 0)) <= 0) {
 		perror("recv");
@@ -125,11 +132,6 @@ main(int argc, char *argv[])
 	buf[n_bytes] = '\0';
 
 	std::cout << buf;
-
-	if (send_all(sock_fd, buf, &n_bytes) == -1) {
-		perror("send_all");
-		exit(4);
-	}
 
 	close(sock_fd);
 

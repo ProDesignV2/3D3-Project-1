@@ -13,7 +13,7 @@
 #include <iostream>
 #include <list>
 
-#define SERVER_PORT "8080"
+#define SERVER_PORT "9876"
 #define BACKLOG 10
 #define BUFFER_SIZE 1024
 
