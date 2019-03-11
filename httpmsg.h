@@ -23,6 +23,8 @@ HTTP_Request : public HTTP_Message
 {
 	public:
 		HTTP_Request();
+		HTTP_Request(char *buf);
+		std::string get_path();
 };
 
 class
@@ -30,7 +32,9 @@ HTTP_Response : public HTTP_Message
 {
 	public:
 		HTTP_Response();
+		HTTP_Response(char *buf);
 		void add_body(std::string file_path);
+		void save_body(std::string file_path);
 };
 
 #endif

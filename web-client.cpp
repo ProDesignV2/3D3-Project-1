@@ -1,5 +1,5 @@
 #include <sys/types.h>
-#include <sys/socket.h>
+// #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <string.h>
@@ -12,9 +12,11 @@
 #include <string>
 
 #include "httpmsg.h"
+#include "helper.h"
 
 #define BUFFER_SIZE 1024
 
+/*
 void *
 get_in_addr(struct sockaddr *sa)
 {
@@ -59,6 +61,21 @@ send_all(int send_fd, const char *buf, int *len)
 	return num_bytes == -1 ? -1 : 0;
 }
 
+char *
+parse_url(char *url)
+{
+	//
+	char *address, *port_num, *file_path;
+	char *end = url + sizeof(url) / sizeof(url[0]);
+	char *addr, *port, *file;
+	addr = std::find(url, end, '/') + 2;
+	port = std::find(addr, end, ':') + 1;
+	file = std::find(port, end, '/');
+	address =  
+	return;
+}
+*/
+
 int
 main(int argc, char *argv[])
 {
@@ -67,8 +84,8 @@ main(int argc, char *argv[])
 	char ipstr[INET6_ADDRSTRLEN], buf[BUFFER_SIZE] = "Hello World!\n";
 	
 	// Set command line argument as address
-	if(argc < 3){
-		fprintf(stderr, "usage: web-client hostname port\n");
+	if(argc < 2){
+		fprintf(stderr, "usage: ./web-client [URL]\n");
 		exit(0);
 	}
 
@@ -77,8 +94,12 @@ main(int argc, char *argv[])
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 
+	// Parse address and port
+	URL_Parsed purl = parse_url(argv[1]);
+	printf("addr [%s]\nport [%s]\nfile [%s]\n", purl.addr, purl.port, purl.file);
+
 	// Get available address structs based on host IP
-	if((gai_result = getaddrinfo(argv[1], argv[2], &hints, &server_info)) != 0){
+	if((gai_result = getaddrinfo("localhost", "9876", &hints, &server_info)) != 0){
 		fprintf(stderr, "getaddrinfo : %s\n", gai_strerror(gai_result));
 		exit(1);
 	}
@@ -123,8 +144,8 @@ main(int argc, char *argv[])
 	// Parse file and save to local folder
 
 	HTTP_Request req;
-	req.add_header("GET http://localhost:8000/index.html HTTP/1.0");
- 	n_bytes = req.len_msg() + 1;		
+	req.add_header("GET http://localhost:9876/test.html HTTP/1.0");
+ 	n_bytes = req.len_msg();		
 	
 	if (send_all(sock_fd, req.get_msg(), &n_bytes) == -1) {
 		perror("send_all");
@@ -135,14 +156,17 @@ main(int argc, char *argv[])
 		perror("recv");
 		exit(3);
 	}
-	
+
+	HTTP_Response resp(buf);
+	resp.save_body("./test3.html");
+		
 	for(int c = 0; c < n_bytes; c++){
-		if(buf[c] < 32 || buf[c] > 126){ buf[c] = '#'; }
+		// if(buf[c] < 32 || buf[c] > 126){ buf[c] = '#'; }
 	}
 
 	buf[n_bytes] = '\0';
 
-	std::cout << buf;
+	std::cout << resp.len_msg() << std::endl << buf;
 
 	close(sock_fd);
 

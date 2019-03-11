@@ -1,6 +1,7 @@
 #include <fstream>
 #include <iterator>
 #include <vector>
+#include <iostream>
 
 #include "httpmsg.h"
 
@@ -30,6 +31,29 @@ HTTP_Message::len_msg()
 	return has_body ? msg.length() : msg.length() + 2;
 }
 
+HTTP_Request::HTTP_Request(char *buf)
+{
+	// Convert buffer into HTTP request message
+	msg = buf;
+}
+
+std::string
+HTTP_Request::get_path()
+{
+	// The 10 represents the space for GET http://
+	unsigned int start_path = msg.find("/", 11);
+	unsigned int end_path = msg.find(" HTTP");
+	std::string path = msg.substr(start_path, end_path - start_path);
+	path.insert(0, ".");
+	return path;
+}
+
+HTTP_Response::HTTP_Response(char *buf)
+{
+	// Convert buffer into HTTP response message
+	msg = buf;
+}
+
 void
 HTTP_Response::add_body(std::string file_path)
 {	
@@ -42,4 +66,13 @@ HTTP_Response::add_body(std::string file_path)
 	msg.append("\r\n");
 	msg.append(body);
 	has_body = true;
+}
+
+void
+HTTP_Response::save_body(std::string file_path)
+{	
+	// Write string out to binary file
+	std::ofstream output(file_path, std::ios::binary);
+	unsigned int body_index = msg.find("\r\n\r\n") + 4;
+	output << msg.substr(body_index);
 }

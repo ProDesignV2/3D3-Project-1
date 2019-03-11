@@ -1,5 +1,5 @@
 #include <sys/types.h>
-#include <sys/socket.h>
+// #include <sys/socket.h>
 #include <sys/fcntl.h>
 #include <sys/unistd.h>
 #include <netinet/in.h>
@@ -15,11 +15,13 @@
 #include <string>
 
 #include "httpmsg.h"
+#include "helper.h"
 
 #define SERVER_PORT "9876"
 #define BACKLOG 10
 #define BUFFER_SIZE 1024
 
+/*
 void *
 get_in_addr(struct sockaddr *sa)
 {
@@ -63,6 +65,7 @@ send_all(int send_fd, const char *buf, int *len)
 	// Return success outcome
 	return num_bytes == -1 ? -1 : 0;
 }
+*/
 
 int
 main()
@@ -188,8 +191,12 @@ main()
 			resp.add_header("Content-Encoding: binary");
 			resp.add_header("Content-Type: text/plain");
 			resp.add_header("Content-Length: 999");
-			resp.add_body("./Book1.xlsx");
 			n_bytes = resp.len_msg() + 1;
+
+			HTTP_Request req(buf);
+			std::string test = req.get_path();
+			std::cout << test << std::endl;
+			resp.add_body(req.get_path());
 			
 			if (send_all(curr_client_fd, resp.get_msg(), &n_bytes) == -1) {
 			      	perror("send_all");
