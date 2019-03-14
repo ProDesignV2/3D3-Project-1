@@ -1,5 +1,4 @@
 #include <sys/types.h>
-// #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <string.h>
@@ -16,66 +15,6 @@
 
 #define BUFFER_SIZE 1024
 
-/*
-void *
-get_in_addr(struct sockaddr *sa)
-{
-	if(sa->sa_family == AF_INET){
-		// Return IPV4 address
-		struct sockaddr_in  *sa_in = (struct sockaddr_in *)sa;
-		return &(sa_in->sin_addr);
-	}
-	// Return IPV6 address
-	struct sockaddr_in6 *sa_in6 = (struct sockaddr_in6 *)sa;
-	return &(sa_in6->sin6_addr);
-}
-
-unsigned short int
-get_in_port(struct sockaddr *sa)
-{
-	if(sa->sa_family == AF_INET){
-		// Return IPV4 port
-		struct sockaddr_in *sa_in = (struct sockaddr_in *)sa;
-		return sa_in->sin_port;
-	}
-	// Return IPV6 port
-	struct sockaddr_in6 *sa_in6 = (struct sockaddr_in6 *)sa;
-	return sa_in6->sin6_port;
-}
-
-int
-send_all(int send_fd, const char *buf, int *len)
-{
-	int num_bytes, bytes_left = *len, bytes_sent = 0;
-
-	while(bytes_sent < *len){
-		if((num_bytes = send(send_fd, buf + bytes_sent, bytes_left, 0)) == -1){ break; }
-		bytes_sent += num_bytes;
-		bytes_left -= num_bytes;
-	}
-	
-	// Put number of sent bytes into original length variable
-	*len = bytes_sent;
-
-	// Return success outcome
-	return num_bytes == -1 ? -1 : 0;
-}
-
-char *
-parse_url(char *url)
-{
-	//
-	char *address, *port_num, *file_path;
-	char *end = url + sizeof(url) / sizeof(url[0]);
-	char *addr, *port, *file;
-	addr = std::find(url, end, '/') + 2;
-	port = std::find(addr, end, ':') + 1;
-	file = std::find(port, end, '/');
-	address =  
-	return;
-}
-*/
-
 int
 main(int argc, char *argv[])
 {
@@ -83,23 +22,23 @@ main(int argc, char *argv[])
 	int sock_fd, gai_result, n_bytes = 14;
 	char ipstr[INET6_ADDRSTRLEN], buf[BUFFER_SIZE] = "Hello World!\n";
 	
-	// Set command line argument as address
+	// Set command line argument usage
 	if(argc < 2){
 		fprintf(stderr, "usage: ./web-client [URL]\n");
 		exit(0);
 	}
+
+	// Parse address and port
+	URL_Parsed purl = parse_url(argv[1]);
+	// printf("addr [%s]\nport [%s]\nfile [%s]\n", purl.addr, purl.port, purl.file);
 
 	// Set parameters for address structs
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 
-	// Parse address and port
-	URL_Parsed purl = parse_url(argv[1]);
-	printf("addr [%s]\nport [%s]\nfile [%s]\n", purl.addr, purl.port, purl.file);
-
 	// Get available address structs based on host IP
-	if((gai_result = getaddrinfo("localhost", "9876", &hints, &server_info)) != 0){
+	if((gai_result = getaddrinfo(purl.addr, purl.port, &hints, &server_info)) != 0){
 		fprintf(stderr, "getaddrinfo : %s\n", gai_strerror(gai_result));
 		exit(1);
 	}
@@ -144,7 +83,9 @@ main(int argc, char *argv[])
 	// Parse file and save to local folder
 
 	HTTP_Request req;
-	req.add_header("GET http://localhost:9876/test.html HTTP/1.0");
+	std::string url(argv[1]);
+	req.add_header("GET "+url+" HTTP/1.0");
+	// req.add_header("GET http://localhost:9876/test.html HTTP/1.0");
  	n_bytes = req.len_msg();		
 	
 	if (send_all(sock_fd, req.get_msg(), &n_bytes) == -1) {

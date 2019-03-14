@@ -58,21 +58,40 @@ parse_url(char *url)
 {
 	// Parse URL into address, port and file path
 	URL_Parsed purl;
-	char *addr, *port, *file;
-	int addrl, portl, filel;
-	char *end = url + strlen(url);
-	printf("Hello\n");
-	if((addr = std::find(url, end, '/') + 2) == end){ perror("url : host"); exit(0); }
-	if((file = std::find(addr, end, '/') + 1) == end){ perror("url : port"); exit(1); }
-	if((port = std::find(addr, file - 2, ':') + 1) == file - 2){ perror("url : path"); exit(2); }
-	addrl = port - addr - 1;
-	portl = file - port - 1;
-	filel = end - file + 1;
-	purl.addr = new char[addrl];
-	purl.port = new char[portl];
-	purl.file = new char[filel];
-	memcpy(purl.addr, addr, addrl);
-	memcpy(purl.port, port, portl);
-	memcpy(purl.file, file, filel);
+	std::string urlStr(url);
+	size_t addr_pos = 0, port_pos, file_pos, url_len = urlStr.length();
+	size_t addr_len, port_len, file_len;
+	// Check for protocol
+	if(urlStr.find("https://") != std::string::npos ||
+	   urlStr.find("http://")  != std::string::npos   ){ addr_pos = urlStr.find("//") + 2; }
+	// Check for port
+	port_pos = urlStr.find(":", addr_pos);
+	// Check for file
+	file_pos = urlStr.find("/", addr_pos);
+	// Get file length
+	if(file_pos != std::string::npos){	
+		if(port_pos != std::string::npos){
+			addr_len = port_pos - addr_pos;
+			port_len = file_pos - port_pos - 1;
+			if(addr_pos == file_pos){ fprintf(stderr, "url : hostname\n"); exit(0); }
+			if(port_len == 0){ fprintf(stderr, "url : port\n"); exit(0); }
+		}
+		else{
+			addr_len = file_pos - addr_pos;
+			port_len = 0;
+			file_len = url_len - file_pos;
+		}
+		file_len = url_len - file_pos;
+		if(addr_len == 0){ fprintf(stderr, "url : hostname\n"); exit(1); }
+	}
+	else{ fprintf(stderr, "url : filepath\n"); exit(2); }
+	// Copy parsed URL parts into struct	
+	purl.addr = new char[addr_len];
+	purl.file = new char[file_len];
+	strcpy(purl.addr, urlStr.substr(addr_pos, addr_len).c_str());
+	strcpy(purl.file, urlStr.substr(file_pos, file_len).c_str());
+	if(port_len == 0){ purl.port = NULL; return purl; }
+	purl.port = new char[port_len];
+	strcpy(purl.port, urlStr.substr(port_pos + 1, port_len).c_str());
 	return purl;
 }

@@ -1,5 +1,4 @@
 #include <sys/types.h>
-// #include <sys/socket.h>
 #include <sys/fcntl.h>
 #include <sys/unistd.h>
 #include <netinet/in.h>
@@ -17,58 +16,14 @@
 #include "httpmsg.h"
 #include "helper.h"
 
-#define SERVER_PORT "9876"
+#define DEFAULT_HOST "localhost"
+#define DEFAULT_PORT "4000"
+#define DEFAULT_FILEDIR "."
 #define BACKLOG 10
 #define BUFFER_SIZE 1024
 
-/*
-void *
-get_in_addr(struct sockaddr *sa)
-{
-	if(sa->sa_family == AF_INET){
-		// Return IPV4 address
-		struct sockaddr_in  *sa_in = (struct sockaddr_in *)sa;
-		return &(sa_in->sin_addr);
-	}
-	// Return IPV6 address
-	struct sockaddr_in6 *sa_in6 = (struct sockaddr_in6 *)sa;
-	return &(sa_in6->sin6_addr);
-}
-
-unsigned short int
-get_in_port(struct sockaddr *sa)
-{
-	if(sa->sa_family == AF_INET){
-		// Return IPV4 port
-		struct sockaddr_in *sa_in = (struct sockaddr_in *)sa;
-		return sa_in->sin_port;
-	}
-	// Return IPV6 port
-	struct sockaddr_in6 *sa_in6 = (struct sockaddr_in6 *)sa;
-	return sa_in6->sin6_port;
-}
-
 int
-send_all(int send_fd, const char *buf, int *len)
-{
-	int num_bytes, bytes_left = *len, bytes_sent = 0;
-
-	while(bytes_sent < *len){
-		if((num_bytes = send(send_fd, buf + bytes_sent, bytes_left, 0)) == -1){ break; }
-		bytes_sent += num_bytes;
-		bytes_left -= num_bytes;
-	}
-	
-	// Put number of sent bytes into original length variable
-	*len = bytes_sent;
-
-	// Return success outcome
-	return num_bytes == -1 ? -1 : 0;
-}
-*/
-
-int
-main()
+main(int argc, char *argv[])
 {
 	struct addrinfo hints, *server_info, *res_point;
 	int listener_fd, client_fd, highest_fd, gai_result, n_bytes, closed_fd, yes = 1;
@@ -77,6 +32,22 @@ main()
 	char ipstr[INET6_ADDRSTRLEN], buf[BUFFER_SIZE];
 	fd_set master, readfds;
 	std::list<int> master_list;	
+	std::string server_hostname, server_port, server_filedir;	
+	
+	server_hostname = DEFAULT_HOST;
+	server_port = DEFAULT_PORT;
+	server_filedir = DEFAULT_FILEDIR;
+
+	// Set command arguments as server details
+	switch(argc){ 
+		case 1: break;
+		case 2: server_hostname = argv[1]; break;
+		case 3: server_hostname = argv[1]; server_port = argv[2]; break;
+		case 4: server_hostname = argv[1]; server_port = argv[2]; server_filedir = argv[3]; break;
+		default:		
+			fprintf(stderr, "usage: ./web-server [hostname] [port] [file-dir]\n"); 
+			exit(0); 
+	}
 
 	// Set parameters for address structs
 	memset(&hints, 0, sizeof hints);
@@ -85,7 +56,7 @@ main()
 	hints.ai_flags = AI_PASSIVE;
 
 	// Get available address structs based on host IP
-	if((gai_result = getaddrinfo(NULL, SERVER_PORT, &hints, &server_info)) != 0){
+	if((gai_result = getaddrinfo(NULL, server_port.c_str(), &hints, &server_info)) != 0){
 		fprintf(stderr, "getaddrinfo : %s\n", gai_strerror(gai_result));
 		exit(0);
 	}
