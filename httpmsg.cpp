@@ -2,8 +2,10 @@
 #include <iterator>
 #include <vector>
 #include <iostream>
+#include <string.h>
 
 #include "httpmsg.h"
+#include "helper.h"
 
 HTTP_Message::HTTP_Message() : msg(""), has_body(false) {}
 
@@ -31,27 +33,34 @@ HTTP_Message::len_msg()
 	return has_body ? msg.length() : msg.length() + 2;
 }
 
-HTTP_Request::HTTP_Request(char *buf)
+HTTP_Request::HTTP_Request(char *buf, int n_bytes)
 {
 	// Convert buffer into HTTP request message
-	msg = buf;
+	msg = std::string(buf, n_bytes);
 }
 
 std::string
-HTTP_Request::get_path()
+HTTP_Request::get_path(bool client)
 {
-	// The 10 represents the space for GET http://
-	unsigned int start_path = msg.find("/", 11);
-	unsigned int end_path = msg.find(" HTTP");
-	std::string path = msg.substr(start_path, end_path - start_path);
-	path.insert(0, ".");
+	// The 4 represents the space for GET
+	size_t end_path = msg.find(" HTTP");
+	char *temp = new char[end_path - 4];
+	strcpy(temp, msg.substr(4, end_path - 4).c_str());
+	URL_Parsed purl = parse_url(temp);
+	std::string path(purl.file);
+	if(client){ 
+		path = path.substr(path.find_last_of("/") + 1);		
+	}
+	else{
+		path.insert(0, ".");
+	}
 	return path;
 }
 
-HTTP_Response::HTTP_Response(char *buf)
+HTTP_Response::HTTP_Response(char *buf, int n_bytes)
 {
 	// Convert buffer into HTTP response message
-	msg = buf;
+	msg = std::string(buf, n_bytes);
 }
 
 void

@@ -154,21 +154,20 @@ main(int argc, char *argv[])
 				continue;
 			}
 
-			std::cout << buf;
-			
-			// Try to send .txt file back
+			// Parse HTTP request	
+			HTTP_Request req(buf, n_bytes);
+			std::string client_path = req.get_path(false);
+			std::cout << client_path << std::endl << curr_client_fd << std::endl;
+
+			// Create HTTP response
 			HTTP_Response resp;
 			resp.add_header("HTTP/1.0 200 OK");
 			resp.add_header("Content-Encoding: binary");
 			resp.add_header("Content-Type: text/plain");
 			resp.add_header("Content-Length: 999");
-			n_bytes = resp.len_msg() + 1;
+			resp.add_body(req.get_path(false));
+			n_bytes = resp.len_msg();
 
-			HTTP_Request req(buf);
-			std::string test = req.get_path();
-			std::cout << test << std::endl;
-			resp.add_body(req.get_path());
-			
 			if (send_all(curr_client_fd, resp.get_msg(), &n_bytes) == -1) {
 			      	perror("send_all");
 			      	continue;
