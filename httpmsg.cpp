@@ -13,6 +13,16 @@ HTTP_Request::HTTP_Request() : HTTP_Message() {}
 
 HTTP_Response::HTTP_Response() : HTTP_Message() {}
 
+bool
+HTTP_Message::append(char *buf, int n_bytes)
+{
+    // Append  buffer to  HTTP request message
+    msg.append(std::string(buf, n_bytes));
+    // Check if completed request and return
+    // Need to check for body if Content-Length is present
+    return msg.find("\r\n\r\n") == (msg.length() - 4) 
+}
+
 void 
 HTTP_Message::add_header(std::string header_line)
 {
@@ -37,15 +47,6 @@ HTTP_Request::HTTP_Request(char *buf, int n_bytes)
 {
 	// Convert buffer into HTTP request message
 	msg = std::string(buf, n_bytes);
-}
-
-bool
-HTTP_Request::append(char *buf, int n_bytes)
-{
-    // Append  buffer to  HTTP request message
-    msg.append(std::string(buf, n_bytes));
-    // Check if completed request and return
-    //
 }
 
 std::string

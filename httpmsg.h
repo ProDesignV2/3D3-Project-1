@@ -13,6 +13,7 @@ HTTP_Message
 		bool has_body;
 	public:
 		HTTP_Message();
+        bool append(char *buf, int n_bytes);
 		void add_header(std::string header_line);
 		const char *get_msg();
 		int len_msg();
@@ -24,7 +25,6 @@ HTTP_Request : public HTTP_Message
 	public:
 		HTTP_Request();
 		HTTP_Request(char *buf, int n_bytes);
-        bool append(char *buf, int n_bytes);
 		std::string get_path(bool client);
 };
 
