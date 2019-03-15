@@ -39,6 +39,15 @@ HTTP_Request::HTTP_Request(char *buf, int n_bytes)
 	msg = std::string(buf, n_bytes);
 }
 
+bool
+HTTP_Request::append(char *buf, int n_bytes)
+{
+    // Append  buffer to  HTTP request message
+    msg.append(std::string(buf, n_bytes));
+    // Check if completed request and return
+    //
+}
+
 std::string
 HTTP_Request::get_path(bool client)
 {
@@ -50,6 +59,7 @@ HTTP_Request::get_path(bool client)
 	std::string path(purl.file);
 	if(client){ 
 		path = path.substr(path.find_last_of("/") + 1);		
+        path.insert(0, "wow");
 	}
 	else{
 		path.insert(0, ".");

@@ -30,7 +30,7 @@ main(int argc, char *argv[])
 
 	// Cycle through requested URLs	
 	int arg_curr = 1;
-	while(arg_curr <= argc){
+	while(arg_curr < argc){
 
 		// Print current requested URL
 		printf("%s\n", argv[arg_curr]);	
@@ -85,29 +85,31 @@ main(int argc, char *argv[])
 		freeaddrinfo(server_info);		
 
 		// Send HTTP request for file
-		// Receive all of HTTP response with file in body
-		// Parse file and save to local folder
-
 		HTTP_Request req;
 		std::string url(argv[arg_curr]);
-		req.add_header("GET "+url+" HTTP/1.0");
+		req.add_header("GET " + url + " HTTP/1.0");
 		n_bytes = req.len_msg();		
-		
+	
+        // Send all of HTTP request    
 		if (send_all(sock_fd, req.get_msg(), &n_bytes) == -1) {
 			perror("send_all");
 			exit(4);
 		}
-		
-		if((n_bytes = recv(sock_fd, buf, BUFFER_SIZE - 1, 0)) <= 0) {
+	
+        // Receive HTTP response    
+		if((n_bytes = recv(sock_fd, buf, BUFFER_SIZE, 0)) <= 0) {
 			perror("recv");
 			exit(3);
 		}
 
+        // Parse response and save file to local folder
 		HTTP_Response resp(buf, n_bytes);
 		resp.save_body(req.get_path(true));
 
+        // Close current socket
 		close(sock_fd);
-
+        
+        // Go to next URL
 		arg_curr++;
 	}
 	
