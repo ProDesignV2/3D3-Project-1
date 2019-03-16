@@ -69,7 +69,7 @@ HTTP_Message::len_msg()
 }
 
 bool
-HTTP_Message:: reset_timeout()
+HTTP_Message:: is_error()
 {
 	if(timeout == 0){ return false; }
 	timeout = 0;
@@ -133,4 +133,15 @@ HTTP_Response::save_body(std::string file_path)
 	std::ofstream output(file_path, std::ios::binary);
 	unsigned int body_index = msg.find("\r\n\r\n") + 4;
 	output << msg.substr(body_index);
+}
+
+size_t
+HTTP_Response::get_code()
+{
+	// Find error code (3-digit)
+	size_t start_code = msg.find(" ") + 1;
+	std::stringstream ss(msg.substr(start_code, 3));
+	size_t temp;
+	ss >> temp;
+	return temp;
 }

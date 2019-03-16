@@ -1,6 +1,7 @@
 #include <sys/types.h>
 #include <sys/fcntl.h>
 #include <sys/unistd.h>
+#include <sys/stat.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <string.h>
@@ -163,18 +164,30 @@ main(int argc, char *argv[])
 				}
 			}
 			
-			if(closed_fd == curr_client_fd || req.reset_timeout()){ continue; }
-			
-			// Parse HTTP request	
-			std::string client_path = req.get_filename(false, server_filedir);
-			std::cout << client_path << std::endl;
+			if(curr_client_fd == closed_fd){ continue; }
 
 			// Create HTTP response
 			HTTP_Response resp;
-			resp.add_header("HTTP/1.0 200 OK");
-			resp.add_header("Content-Encoding: binary");
-			resp.add_header("Content-Type: text/plain");
-			resp.add_body(req.get_filename(false, server_filedir));
+
+			if(req.is_error()){ resp.add_header("HTTP/1.0 400 Bad request"); }
+			else{
+				// Parse HTTP request	
+				std::string client_path = req.get_filename(false, server_filedir);
+				if(client_path.compare("./ ")){ client_path = "./index.html"; }	
+				std::cout << client_path << std::endl;
+				struct stat file_buffer;
+
+				// Check filename
+				if(stat (client_path.c_str(), &file_buffer) != 0)
+				{ resp.add_header("HTTP/1.0 404 Not found"); }
+				else{
+					resp.add_header("HTTP/1.0 200 OK");
+					resp.add_header("Content-Encoding: binary");
+					resp.add_header("Content-Type: text/plain");
+					resp.add_body(client_path);
+				}
+			}
+
 			n_bytes = resp.len_msg();
 
 			if (send_all(curr_client_fd, resp.get_msg(), &n_bytes) == -1) {

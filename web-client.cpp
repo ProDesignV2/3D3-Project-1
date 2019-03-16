@@ -109,16 +109,23 @@ main(int argc, char *argv[])
 			}
 		}
 
-		if(resp.reset_timeout()){
+		if(resp.is_error()){
 			fprintf(stderr, "client : recv timeout\n");
 			exit(4);
 		}
 		
 		// Check response for error code
-		//
-
-        	// Parse response and save file to local folder
-		resp.save_body(req.get_filename(true, ""));
+		size_t resp_code = resp.get_code();
+		
+		if(resp_code == 400){ printf("400 Bad request\n"); }
+		else if(resp_code == 404){ printf("404 Not found\n"); }
+		else if(resp_code == 200){
+        		// Parse response and save file to local folder
+			std::string req_path = req.get_filename(true, "");
+			if(req_path.compare("/")){ req_path = "new.html"; }
+			resp.save_body(req_path);
+		}
+		else{ fprintf(stderr, "client : unknown error code\n"); exit(5); }
 
         	// Close current socket
 		close(sock_fd);

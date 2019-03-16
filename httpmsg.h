@@ -22,7 +22,7 @@ HTTP_Message
 		void add_header(std::string header_line);
 		const char *get_msg();
 		int len_msg();
-		bool reset_timeout();
+		bool is_error();
 };
 
 class
@@ -42,6 +42,7 @@ HTTP_Response : public HTTP_Message
 		HTTP_Response(char *buf, int n_bytes);
 		void add_body(std::string file_path);
 		void save_body(std::string file_path);
+		size_t get_code();
 };
 
 #endif
