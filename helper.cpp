@@ -87,12 +87,12 @@ parse_url(char *url)
 	}
 	else{ fprintf(stderr, "url : filepath\n"); exit(2); }
 	// Copy parsed URL parts into struct	
-	purl.addr = new char[addr_len];
-	purl.file = new char[file_len];
+	purl.addr = new char[addr_len + 1];
+	purl.file = new char[file_len + 1];
 	strcpy(purl.addr, urlStr.substr(addr_pos, addr_len).c_str());
 	strcpy(purl.file, urlStr.substr(file_pos, file_len).c_str());
 	if(port_len == 0){ purl.port = NULL; return purl; }
-	purl.port = new char[port_len];
+	purl.port = new char[port_len + 1];
 	strcpy(purl.port, urlStr.substr(port_pos + 1, port_len).c_str());
 	return purl;
 }

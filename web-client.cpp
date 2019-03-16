@@ -67,6 +67,7 @@ main(int argc, char *argv[])
 
 			break;
 		}
+		
 
 		// If no working address struct is found
 		if(res_point == NULL){
@@ -90,26 +91,39 @@ main(int argc, char *argv[])
 		req.add_header("GET " + url + " HTTP/1.0");
 		n_bytes = req.len_msg();		
 	
-        // Send all of HTTP request    
+        	// Send all of HTTP request    
 		if (send_all(sock_fd, req.get_msg(), &n_bytes) == -1) {
 			perror("send_all");
 			exit(4);
 		}
+		
+		// Create empty HTTP response
+		HTTP_Response resp;
+		n_bytes = 0;
 	
-        // Receive HTTP response    
-		if((n_bytes = recv(sock_fd, buf, BUFFER_SIZE, 0)) <= 0) {
-			perror("recv");
-			exit(3);
+		while(!(resp.append(buf, n_bytes))){
+			// Receive HTTP response    
+			if((n_bytes = recv(sock_fd, buf, BUFFER_SIZE, 0)) <= 0) {
+				perror("recv");
+				exit(3);
+			}
 		}
 
-        // Parse response and save file to local folder
-		HTTP_Response resp(buf, n_bytes);
-		resp.save_body(req.get_path(true));
+		if(resp.reset_timeout()){
+			fprintf(stderr, "client : recv timeout\n");
+			exit(4);
+		}
+		
+		// Check response for error code
+		//
 
-        // Close current socket
+        	// Parse response and save file to local folder
+		resp.save_body(req.get_filename(true, ""));
+
+        	// Close current socket
 		close(sock_fd);
         
-        // Go to next URL
+       	 	// Go to next URL
 		arg_curr++;
 	}
 	

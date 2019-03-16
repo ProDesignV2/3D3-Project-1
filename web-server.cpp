@@ -53,10 +53,13 @@ main(int argc, char *argv[])
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_flags = AI_PASSIVE;
+	// hints.ai_flags = AI_PASSIVE;
 
 	// Get available address structs based on host IP
-	if((gai_result = getaddrinfo(NULL, server_port.c_str(), &hints, &server_info)) != 0){
+	if((gai_result = getaddrinfo(server_hostname.c_str(),
+				     server_port.c_str(),
+			 	     &hints,
+			   	     &server_info)) != 0){
 		fprintf(stderr, "getaddrinfo : %s\n", gai_strerror(gai_result));
 		exit(0);
 	}
@@ -89,7 +92,7 @@ main(int argc, char *argv[])
 
 		break;
 	}
-
+	
 	// Free addrinfo struct - Should res_point be freed too ?
 	freeaddrinfo(server_info);	
 	
@@ -140,32 +143,38 @@ main(int argc, char *argv[])
 			if(!FD_ISSET(curr_client_fd, &readfds)){ continue; }
 
 			memset(&buf, 0, sizeof buf);
+			n_bytes = 0;	
 			
-			if((n_bytes = recv(curr_client_fd, buf, sizeof buf, 0)) <= 0) {
-			      	if(n_bytes == 0){
-					printf("server : socket %d hung up\n", curr_client_fd);
-				}
-				else{ perror("recv"); }
-				// Close server side of connection
-			      	close(curr_client_fd);
-				FD_CLR(curr_client_fd, &master);
-				// Flag removal of socket
-				closed_fd = curr_client_fd;
-				continue;
-			}
+			// Create empty HTTP request
+			HTTP_Request req;
 
+			while(!(req.append(buf, n_bytes))){
+				if((n_bytes = recv(curr_client_fd, buf, sizeof buf, 0)) <= 0) {
+					if(n_bytes == 0){
+						printf("server : socket %d hung up\n", curr_client_fd);
+					}
+					else{ perror("recv"); }
+					// Close server side of connection
+					close(curr_client_fd);
+					FD_CLR(curr_client_fd, &master);
+					// Flag removal of socket
+					closed_fd = curr_client_fd;
+					break;
+				}
+			}
+			
+			if(closed_fd == curr_client_fd || req.reset_timeout()){ continue; }
+			
 			// Parse HTTP request	
-			HTTP_Request req(buf, n_bytes);
-			std::string client_path = req.get_path(false);
-			std::cout << client_path << std::endl << curr_client_fd << std::endl;
+			std::string client_path = req.get_filename(false, server_filedir);
+			std::cout << client_path << std::endl;
 
 			// Create HTTP response
 			HTTP_Response resp;
 			resp.add_header("HTTP/1.0 200 OK");
 			resp.add_header("Content-Encoding: binary");
 			resp.add_header("Content-Type: text/plain");
-			resp.add_header("Content-Length: 999");
-			resp.add_body(req.get_path(false));
+			resp.add_body(req.get_filename(false, server_filedir));
 			n_bytes = resp.len_msg();
 
 			if (send_all(curr_client_fd, resp.get_msg(), &n_bytes) == -1) {
@@ -197,7 +206,7 @@ main(int argc, char *argv[])
 				continue;
 			}
 			
-			// Set new socket to non-blocking
+			// Set new socket to non-blocking, is it automatically set by listener ?
 			fcntl(client_fd, F_SETFL, O_NONBLOCK);
 	
 			// Add new client socket to list and set

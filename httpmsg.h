@@ -4,6 +4,9 @@
 // Header file for declaring HTTP Request and Response messages
 
 #include <string>
+#include <ctime>
+
+#define MSG_TIMEOUT 5
 
 class
 HTTP_Message
@@ -11,12 +14,15 @@ HTTP_Message
 	protected:
 		std::string msg;
 		bool has_body;
+		size_t body_length;
+		clock_t timeout;
 	public:
 		HTTP_Message();
-        bool append(char *buf, int n_bytes);
+	        bool append(char *buf, int n_bytes);
 		void add_header(std::string header_line);
 		const char *get_msg();
 		int len_msg();
+		bool reset_timeout();
 };
 
 class
@@ -25,7 +31,7 @@ HTTP_Request : public HTTP_Message
 	public:
 		HTTP_Request();
 		HTTP_Request(char *buf, int n_bytes);
-		std::string get_path(bool client);
+		std::string get_filename(bool client, std::string dir);
 };
 
 class
