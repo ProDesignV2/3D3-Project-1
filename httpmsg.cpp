@@ -93,7 +93,6 @@ HTTP_Request::get_filename(bool client, std::string dir)
 	std::string path(purl.file);
 	if(client){
 		path = path.substr(path.find_last_of("/") + 1);		
-		path.insert(0, "wow");
 	}
 	else{
 		path.insert(0, dir);

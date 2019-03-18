@@ -173,7 +173,7 @@ main(int argc, char *argv[])
 			else{
 				// Parse HTTP request	
 				std::string client_path = req.get_filename(false, server_filedir);
-				if(client_path.compare("./ ")){ client_path = "./index.html"; }	
+				if(client_path.compare("./ ") == 0){ client_path = "./index.html"; }	
 				std::cout << client_path << std::endl;
 				struct stat file_buffer;
 

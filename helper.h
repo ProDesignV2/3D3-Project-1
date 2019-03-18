@@ -5,22 +5,20 @@
 
 #include <sys/socket.h>
 
-/*
-#define MAX_ADDR_LENGTH 200
-#define MAX_PORT_LENGTH 5
-#define MAX_FILE_LENGTH 200
-*/
+enum class Persistent
+{
+	pers,
+	non_pers,
+	pers_serv,
+	unspec
+};
 
 struct URL_Parsed
 {	
-	/*
-	char addr[MAX_ADDR_LENGTH];
-	char port[MAX_PORT_LENGTH];
-	char file[MAX_FILE_LENGTH];
-	*/
 	char *addr;
 	char *port;
 	char *file;
+	Persistent pers;
 };
 
 void *

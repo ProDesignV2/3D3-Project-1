@@ -60,7 +60,7 @@ parse_url(char *url)
 	// Parse URL into address, port and file path
 	URL_Parsed purl;
 	std::string urlStr(url);
-	size_t addr_pos = 0, port_pos, file_pos, url_len = urlStr.length();
+	size_t addr_pos = 0, port_pos, file_pos, quer_pos, url_len = urlStr.length();
 	size_t addr_len, port_len, file_len;
 	// Check for protocol
 	if(urlStr.find("https://") != std::string::npos ||
@@ -69,6 +69,14 @@ parse_url(char *url)
 	port_pos = urlStr.find(":", addr_pos);
 	// Check for file
 	file_pos = urlStr.find("/", addr_pos);
+	// Check for query
+	quer_pos = urlStr.find("?", addr_pos);
+	purl.pers = Persistent::unspec;
+	if(quer_pos != std::string::npos){
+		if(urlStr.substr(quer_pos + 1).compare("1") == 0){ purl.pers = Persistent::pers; }
+		else if(urlStr.substr(quer_pos + 1).compare("0") == 0){ purl.pers = Persistent::non_pers; }
+		url_len = quer_pos;
+	}	
 	// Get file length
 	if(file_pos != std::string::npos){	
 		if(port_pos != std::string::npos){
